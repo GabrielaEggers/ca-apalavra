@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Defensores do Espaço - Avanço Manual</title>
+  <title>Defensores do Espaço - Fases Dinâmicas</title>
   <style>
     * {
       margin: 0;
@@ -42,12 +42,12 @@
       font-weight: bold;
       pointer-events: none;
       text-shadow: 0 0 8px rgba(0,0,0,0.8);
+      z-index: 5;
     }
     .score { color: #00e5ff; }
     .level { color: #ffcc00; }
     .health { color: #ff0055; }
 
-    /* Tela de Transição de Fase */
     #level-screen {
       display: none;
       position: absolute;
@@ -99,10 +99,9 @@
       <div class="health">Escudo: <span id="health-val">100</span>%</div>
     </div>
 
-    <!-- Overlay para passar de fase -->
     <div id="level-screen">
-      <h2>FASE CONCLUÍDA!</h2>
-      <p id="level-summary">Você destruiu o chefe da fase.</p>
+      <h2 id="level-title">FASE CONCLUÍDA!</h2>
+      <p id="level-summary">Você superou os desafios desta região.</p>
       <button id="next-btn" onclick="startNextLevel()">Próxima Fase</button>
     </div>
 
@@ -114,12 +113,12 @@
     const ctx = canvas.getContext('2d');
     const levelScreen = document.getElementById('level-screen');
 
-    // Estado Geral do Jogo
+    // Estado Geral
     let score = 0;
     let health = 100;
     let level = 1;
     let killsInLevel = 0;
-    const KILLS_PER_LEVEL = 15;
+    const KILLS_PER_LEVEL = 12;
     let gameOver = false;
     let levelCompleted = false;
     let frame = 0;
@@ -128,8 +127,6 @@
     const player = {
       x: canvas.width / 2,
       y: canvas.height - 80,
-      width: 32,
-      height: 32,
       speed: 0.15
     };
 
@@ -149,14 +146,13 @@
       e.preventDefault();
     });
 
-    // Entidades
     let bullets = [];
-    let meteors = [];
+    let obstacles = [];
     let crystals = [];
     const stars = [];
     let boss = null;
 
-    // Fundo Estrelado
+    // Fundo de estrelas base
     for (let i = 0; i < 60; i++) {
       stars.push({
         x: Math.random() * canvas.width,
@@ -166,49 +162,79 @@
       });
     }
 
-    // Criar o Chefão
+    // Configuração de Estilo por Fase
+    function getPhaseConfig() {
+      const mode = (level - 1) % 3;
+      if (mode === 0) {
+        return {
+          bg: '#02020a',
+          obsColor: '#ff5533',
+          obsType: 'meteor', // Meteoros redondos
+          bossColor: '#aa00ff',
+          name: 'Cinto de Asteroides'
+        };
+      } else if (mode === 1) {
+        return {
+          bg: '#1a001a',
+          obsColor: '#00ffcc',
+          obsType: 'crystal', // Espinhos verticais de toxina
+          bossColor: '#ff0055',
+          name: 'Nebulosa Toxica'
+        };
+      } else {
+        return {
+          bg: '#001a1a',
+          obsColor: '#ffcc00',
+          obsType: 'drone', // Drones quadrados
+          bossColor: '#00e5ff',
+          name: 'Setor de Drones Cyber'
+        };
+      }
+    }
+
     function spawnBoss() {
+      const config = getPhaseConfig();
       boss = {
         x: canvas.width / 2,
         y: -80,
         targetY: 100,
         width: 80,
         height: 60,
-        hp: 30 + level * 20,
-        maxHp: 30 + level * 20,
-        dx: 2 + level * 0.5
+        hp: 35 + level * 25,
+        maxHp: 35 + level * 25,
+        dx: 2 + level * 0.7,
+        color: config.bossColor
       };
     }
 
-    // Acionado quando o Chefe Morre
     function completeLevel() {
       levelCompleted = true;
-      document.getElementById('level-summary').textContent = `Você dominou a Fase ${level}! Clique para avançar.`;
+      document.getElementById('level-summary').textContent = `Setor limpo com sucesso! Prepare-se para a próxima zona.`;
       levelScreen.style.display = 'flex';
       canvas.style.cursor = 'default';
     }
 
-    // Ação do Botão "Próxima Fase"
     function startNextLevel() {
       level++;
       killsInLevel = 0;
       boss = null;
       bullets = [];
-      meteors = [];
+      obstacles = [];
       crystals = [];
       levelCompleted = false;
-      health = Math.min(100, health + 30); // Recupera vida
+      health = Math.min(100, health + 35);
 
       levelScreen.style.display = 'none';
       canvas.style.cursor = 'none';
     }
 
-    // Loop de Atualização
+    // Atualização de Lógica
     function update() {
       if (gameOver || levelCompleted) return;
       frame++;
 
-      // Movimento da Nave
+      const config = getPhaseConfig();
+
       player.x += (targetX - player.x) * player.speed;
       player.y += (targetY - player.y) * player.speed;
 
@@ -216,45 +242,51 @@
       player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
 
       // Atirar
-      if (frame % 8 === 0) {
-        bullets.push({ x: player.x, y: player.y - 15, speed: 10 });
+      if (frame % 7 === 0) {
+        bullets.push({ x: player.x, y: player.y - 15, speed: 11 });
       }
 
-      // Atualizar Tiros
+      // Tiros
       for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= bullets[i].speed;
         if (bullets[i].y < -10) bullets.splice(i, 1);
       }
 
-      // Spawn de Inimigos
-      const spawnRate = Math.max(10, 35 - level * 3);
+      // Criar Obstáculos (Mais rápidos e mais frequentes a cada fase)
+      const spawnRate = Math.max(8, 30 - level * 3);
       if (!boss && frame % spawnRate === 0) {
-        meteors.push({
+        obstacles.push({
           x: Math.random() * (canvas.width - 40) + 20,
           y: -30,
           radius: 12 + Math.random() * 16,
-          speed: (2 + level * 0.5) + Math.random() * 2,
-          hp: 1 + Math.floor(level / 2)
+          speed: (2.5 + level * 0.6) + Math.random() * 2,
+          hp: 1 + Math.floor(level / 2),
+          type: config.obsType
         });
       }
 
-      // Atualizar Meteoros
-      for (let i = meteors.length - 1; i >= 0; i--) {
-        const m = meteors[i];
-        m.y += m.speed;
+      // Atualizar Obstáculos
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.y += obs.speed;
 
-        // Colisão Meteoro x Tiro
+        // Movimento extra para Drones na Fase 3
+        if (obs.type === 'drone') {
+          obs.x += Math.sin(frame * 0.1) * 2;
+        }
+
+        // Colisão com Tiros
         for (let j = bullets.length - 1; j >= 0; j--) {
           const b = bullets[j];
-          if (Math.hypot(m.x - b.x, m.y - b.y) < m.radius + 4) {
+          if (Math.hypot(obs.x - b.x, obs.y - b.y) < obs.radius + 5) {
             bullets.splice(j, 1);
-            m.hp--;
+            obs.hp--;
 
-            if (m.hp <= 0) {
-              if (Math.random() > 0.4) crystals.push({ x: m.x, y: m.y, speed: 2 });
-              score += 10 * level;
+            if (obs.hp <= 0) {
+              if (Math.random() > 0.4) crystals.push({ x: obs.x, y: obs.y, speed: 2 });
+              score += 15 * level;
               killsInLevel++;
-              meteors.splice(i, 1);
+              obstacles.splice(i, 1);
 
               if (killsInLevel >= KILLS_PER_LEVEL && !boss) {
                 spawnBoss();
@@ -264,24 +296,23 @@
           }
         }
 
-        // Colisão Meteoro x Jogador
-        if (m && Math.hypot(m.x - player.x, m.y - player.y) < m.radius + 15) {
+        // Colisão com Jogador
+        if (obs && Math.hypot(obs.x - player.x, obs.y - player.y) < obs.radius + 15) {
           health -= 15 + level * 2;
-          meteors.splice(i, 1);
+          obstacles.splice(i, 1);
           if (health <= 0) gameOver = true;
-        } else if (m && m.y > canvas.height + 40) {
-          meteors.splice(i, 1);
+        } else if (obs && obs.y > canvas.height + 40) {
+          obstacles.splice(i, 1);
         }
       }
 
-      // Lógica do Chefão
+      // Lógica do Boss
       if (boss) {
         if (boss.y < boss.targetY) boss.y += 2;
 
         boss.x += boss.dx;
         if (boss.x > canvas.width - 50 || boss.x < 50) boss.dx *= -1;
 
-        // Colisão Tiro x Chefão
         for (let j = bullets.length - 1; j >= 0; j--) {
           const b = bullets[j];
           if (Math.abs(b.x - boss.x) < boss.width / 2 && Math.abs(b.y - boss.y) < boss.height / 2) {
@@ -289,16 +320,15 @@
             boss.hp--;
 
             if (boss.hp <= 0) {
-              score += 500 * level;
+              score += 600 * level;
               completeLevel();
               break;
             }
           }
         }
 
-        // Colisão Chefão x Jogador
         if (Math.hypot(boss.x - player.x, boss.y - player.y) < 50) {
-          health -= 1;
+          health -= 1.5;
           if (health <= 0) gameOver = true;
         }
       }
@@ -309,8 +339,8 @@
         c.y += c.speed;
 
         if (Math.hypot(c.x - player.x, c.y - player.y) < 25) {
-          score += 25;
-          health = Math.min(100, health + 6);
+          score += 30;
+          health = Math.min(100, health + 8);
           crystals.splice(i, 1);
         } else if (c.y > canvas.height + 20) {
           crystals.splice(i, 1);
@@ -319,11 +349,10 @@
 
       // Estrelas
       stars.forEach(s => {
-        s.y += s.speed + (level * 0.2);
+        s.y += s.speed + (level * 0.3);
         if (s.y > canvas.height) s.y = 0;
       });
 
-      // Atualizar HUD
       document.getElementById('score-val').textContent = score;
       document.getElementById('level-val').textContent = level;
       document.getElementById('health-val').textContent = Math.max(0, Math.floor(health));
@@ -331,7 +360,23 @@
 
     // Renderização
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const config = getPhaseConfig();
+
+      // Fundo Dinâmico por Fase
+      ctx.fillStyle = config.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Efeito de Linhas de Grade na Fase Synthwave (Modo 3)
+      if ((level - 1) % 3 === 2) {
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.15)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 40) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = (frame * 2) % 40; y < canvas.height; y += 40) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+      }
 
       // Estrelas
       ctx.fillStyle = '#ffffff';
@@ -349,19 +394,34 @@
       ctx.fillStyle = '#00e5ff';
       bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 12));
 
-      // Meteoros
-      meteors.forEach(m => {
-        ctx.fillStyle = '#ff5533';
+      // Obstáculos Dinâmicos
+      obstacles.forEach(obs => {
+        ctx.fillStyle = config.obsColor;
         ctx.beginPath();
-        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+
+        if (obs.type === 'meteor') {
+          // Redondo
+          ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+        } else if (obs.type === 'crystal') {
+          // Diamante/Espinho
+          ctx.moveTo(obs.x, obs.y - obs.radius);
+          ctx.lineTo(obs.x + obs.radius, obs.y);
+          ctx.lineTo(obs.x, obs.y + obs.radius);
+          ctx.lineTo(obs.x - obs.radius, obs.y);
+        } else {
+          // Quadrado (Drone)
+          ctx.rect(obs.x - obs.radius, obs.y - obs.radius, obs.radius * 2, obs.radius * 2);
+        }
+
         ctx.fill();
       });
 
       // Chefão
       if (boss) {
-        ctx.fillStyle = '#aa00ff';
+        ctx.fillStyle = boss.color;
         ctx.fillRect(boss.x - boss.width / 2, boss.y - boss.height / 2, boss.width, boss.height);
 
+        // Barra de Vida
         ctx.fillStyle = '#ff0055';
         ctx.fillRect(boss.x - 40, boss.y - 45, 80, 6);
         ctx.fillStyle = '#00ff88';
