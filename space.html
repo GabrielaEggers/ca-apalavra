@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Defensores do Espaço - Fases Dinâmicas</title>
+  <title>Defensores do Espaço - Modo Campanha</title>
   <style>
     * {
       margin: 0;
@@ -55,21 +55,22 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(5, 5, 21, 0.9);
+      background: rgba(5, 5, 21, 0.92);
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
       z-index: 10;
+      padding: 20px;
     }
     #level-screen h2 {
-      font-size: 2.2rem;
+      font-size: 2rem;
       color: #00ff88;
       margin-bottom: 10px;
     }
     #level-screen p {
-      font-size: 1.1rem;
-      margin-bottom: 25px;
+      font-size: 1rem;
+      margin-bottom: 20px;
       color: #ccc;
     }
     #next-btn {
@@ -100,9 +101,9 @@
     </div>
 
     <div id="level-screen">
-      <h2 id="level-title">FASE CONCLUÍDA!</h2>
-      <p id="level-summary">Você superou os desafios desta região.</p>
-      <button id="next-btn" onclick="startNextLevel()">Próxima Fase</button>
+      <h2 id="level-title">SETOR LIMPO!</h2>
+      <p id="level-summary">Preparando hiperespaço...</p>
+      <button id="next-btn" onclick="startNextLevel()">Iniciar Próxima Fase</button>
     </div>
 
     <canvas id="canvas" width="480" height="640"></canvas>
@@ -113,12 +114,75 @@
     const ctx = canvas.getContext('2d');
     const levelScreen = document.getElementById('level-screen');
 
-    // Estado Geral
+    // Definição Completa das Fases
+    const STAGES = [
+      {
+        name: "Fase 1: Cinturão de Rochas",
+        bg: "#03030c",
+        obsColor: "#ff5533",
+        obsType: "meteor",
+        bossColor: "#aa00ff",
+        bulletColor: "#00e5ff",
+        targetKills: 10,
+        obsSpeed: 3,
+        spawnRate: 35,
+        desc: "Asteroides clássicos e lentos. Ideal para aquecimento."
+      },
+      {
+        name: "Fase 2: Campo Tóxico Acid",
+        bg: "#0a1a0a",
+        obsColor: "#00ff66",
+        obsType: "crystal",
+        bossColor: "#ffff00",
+        bulletColor: "#ff00ff",
+        targetKills: 15,
+        obsSpeed: 4.5,
+        spawnRate: 25,
+        desc: "Cristais venenosos mais velozes e resistentes."
+      },
+      {
+        name: "Fase 3: Rede Synthwave",
+        bg: "#1a001a",
+        obsColor: "#ff0077",
+        obsType: "grid",
+        bossColor: "#00e5ff",
+        bulletColor: "#ffff00",
+        targetKills: 18,
+        obsSpeed: 5.5,
+        spawnRate: 20,
+        desc: "Drones em formação cybernética com movimento em zigue-zague."
+      },
+      {
+        name: "Fase 4: Tempestade Solar",
+        bg: "#220800",
+        obsColor: "#ffaa00",
+        obsType: "plasma",
+        bossColor: "#ff3300",
+        bulletColor: "#00ffcc",
+        targetKills: 22,
+        obsSpeed: 6.5,
+        spawnRate: 15,
+        desc: "Esferas de plasma em alta velocidade."
+      },
+      {
+        name: "Fase 5: Núcleo do Abismo",
+        bg: "#000000",
+        obsColor: "#ffffff",
+        obsType: "void",
+        bossColor: "#ffffff",
+        bulletColor: "#ff0055",
+        targetKills: 25,
+        obsSpeed: 8,
+        spawnRate: 10,
+        desc: "Caos total! Obstáculos ultra-rápidos e chefão final."
+      }
+    ];
+
+    // Estado do Jogo
     let score = 0;
     let health = 100;
-    let level = 1;
+    let currentLevelIndex = 0;
     let killsInLevel = 0;
-    const KILLS_PER_LEVEL = 12;
     let gameOver = false;
     let levelCompleted = false;
     let frame = 0;
@@ -127,7 +191,7 @@
     const player = {
       x: canvas.width / 2,
       y: canvas.height - 80,
-      speed: 0.15
+      speed: 0.18
     };
 
     let targetX = player.x;
@@ -152,88 +216,71 @@
     const stars = [];
     let boss = null;
 
-    // Fundo de estrelas base
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 70; i++) {
       stars.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         size: Math.random() * 2,
-        speed: 0.5 + Math.random() * 1.5
+        speed: 0.5 + Math.random() * 2
       });
     }
 
-    // Configuração de Estilo por Fase
-    function getPhaseConfig() {
-      const mode = (level - 1) % 3;
-      if (mode === 0) {
-        return {
-          bg: '#02020a',
-          obsColor: '#ff5533',
-          obsType: 'meteor', // Meteoros redondos
-          bossColor: '#aa00ff',
-          name: 'Cinto de Asteroides'
-        };
-      } else if (mode === 1) {
-        return {
-          bg: '#1a001a',
-          obsColor: '#00ffcc',
-          obsType: 'crystal', // Espinhos verticais de toxina
-          bossColor: '#ff0055',
-          name: 'Nebulosa Toxica'
-        };
-      } else {
-        return {
-          bg: '#001a1a',
-          obsColor: '#ffcc00',
-          obsType: 'drone', // Drones quadrados
-          bossColor: '#00e5ff',
-          name: 'Setor de Drones Cyber'
-        };
-      }
+    function getCurrentStage() {
+      return STAGES[Math.min(currentLevelIndex, STAGES.length - 1)];
     }
 
     function spawnBoss() {
-      const config = getPhaseConfig();
+      const stage = getCurrentStage();
       boss = {
         x: canvas.width / 2,
         y: -80,
-        targetY: 100,
-        width: 80,
+        targetY: 110,
+        width: 90,
         height: 60,
-        hp: 35 + level * 25,
-        maxHp: 35 + level * 25,
-        dx: 2 + level * 0.7,
-        color: config.bossColor
+        hp: 40 + (currentLevelIndex + 1) * 30,
+        maxHp: 40 + (currentLevelIndex + 1) * 30,
+        dx: 2.5 + currentLevelIndex * 0.8
       };
     }
 
     function completeLevel() {
       levelCompleted = true;
-      document.getElementById('level-summary').textContent = `Setor limpo com sucesso! Prepare-se para a próxima zona.`;
+      const stage = getCurrentStage();
+      const title = document.getElementById('level-title');
+      const summary = document.getElementById('level-summary');
+
+      if (currentLevelIndex + 1 >= STAGES.length) {
+        title.textContent = "¡VITÓRIA TOTAL!";
+        summary.textContent = `Você completou todas as 5 fases com ${score} pontos!`;
+        document.getElementById('next-btn').style.display = 'none';
+      } else {
+        title.textContent = `${stage.name} Concluída!`;
+        summary.textContent = STAGES[currentLevelIndex + 1].desc;
+      }
+
       levelScreen.style.display = 'flex';
       canvas.style.cursor = 'default';
     }
 
     function startNextLevel() {
-      level++;
+      currentLevelIndex++;
       killsInLevel = 0;
       boss = null;
       bullets = [];
       obstacles = [];
       crystals = [];
       levelCompleted = false;
-      health = Math.min(100, health + 35);
+      health = Math.min(100, health + 40);
 
       levelScreen.style.display = 'none';
       canvas.style.cursor = 'none';
     }
 
-    // Atualização de Lógica
     function update() {
       if (gameOver || levelCompleted) return;
       frame++;
 
-      const config = getPhaseConfig();
+      const stage = getCurrentStage();
 
       player.x += (targetX - player.x) * player.speed;
       player.y += (targetY - player.y) * player.speed;
@@ -241,41 +288,37 @@
       player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
       player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
 
-      // Atirar
+      // Disparo do jogador
       if (frame % 7 === 0) {
-        bullets.push({ x: player.x, y: player.y - 15, speed: 11 });
+        bullets.push({ x: player.x, y: player.y - 15, speed: 12 });
       }
 
-      // Tiros
       for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= bullets[i].speed;
         if (bullets[i].y < -10) bullets.splice(i, 1);
       }
 
-      // Criar Obstáculos (Mais rápidos e mais frequentes a cada fase)
-      const spawnRate = Math.max(8, 30 - level * 3);
-      if (!boss && frame % spawnRate === 0) {
+      // Inimigos
+      if (!boss && frame % stage.spawnRate === 0) {
         obstacles.push({
           x: Math.random() * (canvas.width - 40) + 20,
           y: -30,
-          radius: 12 + Math.random() * 16,
-          speed: (2.5 + level * 0.6) + Math.random() * 2,
-          hp: 1 + Math.floor(level / 2),
-          type: config.obsType
+          radius: 12 + Math.random() * 14,
+          speed: stage.obsSpeed + Math.random() * 1.5,
+          hp: 1 + Math.floor(currentLevelIndex / 2),
+          type: stage.obsType
         });
       }
 
-      // Atualizar Obstáculos
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.y += obs.speed;
 
-        // Movimento extra para Drones na Fase 3
-        if (obs.type === 'drone') {
-          obs.x += Math.sin(frame * 0.1) * 2;
+        if (obs.type === 'grid') {
+          obs.x += Math.sin(frame * 0.12) * 3;
         }
 
-        // Colisão com Tiros
+        // Colisão Tiro x Inimigo
         for (let j = bullets.length - 1; j >= 0; j--) {
           const b = bullets[j];
           if (Math.hypot(obs.x - b.x, obs.y - b.y) < obs.radius + 5) {
@@ -284,11 +327,11 @@
 
             if (obs.hp <= 0) {
               if (Math.random() > 0.4) crystals.push({ x: obs.x, y: obs.y, speed: 2 });
-              score += 15 * level;
+              score += 20 * (currentLevelIndex + 1);
               killsInLevel++;
               obstacles.splice(i, 1);
 
-              if (killsInLevel >= KILLS_PER_LEVEL && !boss) {
+              if (killsInLevel >= stage.targetKills && !boss) {
                 spawnBoss();
               }
               break;
@@ -296,9 +339,9 @@
           }
         }
 
-        // Colisão com Jogador
+        // Colisão Inimigo x Jogador
         if (obs && Math.hypot(obs.x - player.x, obs.y - player.y) < obs.radius + 15) {
-          health -= 15 + level * 2;
+          health -= 12 + currentLevelIndex * 3;
           obstacles.splice(i, 1);
           if (health <= 0) gameOver = true;
         } else if (obs && obs.y > canvas.height + 40) {
@@ -320,15 +363,15 @@
             boss.hp--;
 
             if (boss.hp <= 0) {
-              score += 600 * level;
+              score += 1000 * (currentLevelIndex + 1);
               completeLevel();
               break;
             }
           }
         }
 
-        if (Math.hypot(boss.x - player.x, boss.y - player.y) < 50) {
-          health -= 1.5;
+        if (Math.hypot(boss.x - player.x, boss.y - player.y) < 55) {
+          health -= 2;
           if (health <= 0) gameOver = true;
         }
       }
@@ -339,7 +382,7 @@
         c.y += c.speed;
 
         if (Math.hypot(c.x - player.x, c.y - player.y) < 25) {
-          score += 30;
+          score += 35;
           health = Math.min(100, health + 8);
           crystals.splice(i, 1);
         } else if (c.y > canvas.height + 20) {
@@ -347,33 +390,30 @@
         }
       }
 
-      // Estrelas
       stars.forEach(s => {
-        s.y += s.speed + (level * 0.3);
+        s.y += s.speed + currentLevelIndex * 0.4;
         if (s.y > canvas.height) s.y = 0;
       });
 
       document.getElementById('score-val').textContent = score;
-      document.getElementById('level-val').textContent = level;
+      document.getElementById('level-val').textContent = currentLevelIndex + 1;
       document.getElementById('health-val').textContent = Math.max(0, Math.floor(health));
     }
 
-    // Renderização
     function draw() {
-      const config = getPhaseConfig();
+      const stage = getCurrentStage();
 
-      // Fundo Dinâmico por Fase
-      ctx.fillStyle = config.bg;
+      ctx.fillStyle = stage.bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Efeito de Linhas de Grade na Fase Synthwave (Modo 3)
-      if ((level - 1) % 3 === 2) {
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.15)';
+      // Linhas da Fase Synthwave
+      if (stage.obsType === 'grid') {
+        ctx.strokeStyle = 'rgba(255, 0, 119, 0.2)';
         ctx.lineWidth = 1;
-        for (let x = 0; x < canvas.width; x += 40) {
+        for (let x = 0; x < canvas.width; x += 35) {
           ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
         }
-        for (let y = (frame * 2) % 40; y < canvas.height; y += 40) {
+        for (let y = (frame * 3) % 35; y < canvas.height; y += 35) {
           ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
         }
       }
@@ -391,26 +431,29 @@
       });
 
       // Tiros
-      ctx.fillStyle = '#00e5ff';
-      bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 12));
+      ctx.fillStyle = stage.bulletColor;
+      bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 14));
 
-      // Obstáculos Dinâmicos
+      // Desenho dos Inimigos por Tipo
       obstacles.forEach(obs => {
-        ctx.fillStyle = config.obsColor;
+        ctx.fillStyle = stage.obsColor;
         ctx.beginPath();
 
         if (obs.type === 'meteor') {
-          // Redondo
           ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
         } else if (obs.type === 'crystal') {
-          // Diamante/Espinho
           ctx.moveTo(obs.x, obs.y - obs.radius);
           ctx.lineTo(obs.x + obs.radius, obs.y);
           ctx.lineTo(obs.x, obs.y + obs.radius);
           ctx.lineTo(obs.x - obs.radius, obs.y);
-        } else {
-          // Quadrado (Drone)
+        } else if (obs.type === 'grid') {
           ctx.rect(obs.x - obs.radius, obs.y - obs.radius, obs.radius * 2, obs.radius * 2);
+        } else if (obs.type === 'plasma') {
+          ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+        } else {
+          ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
         }
 
         ctx.fill();
@@ -418,17 +461,16 @@
 
       // Chefão
       if (boss) {
-        ctx.fillStyle = boss.color;
+        ctx.fillStyle = stage.bossColor;
         ctx.fillRect(boss.x - boss.width / 2, boss.y - boss.height / 2, boss.width, boss.height);
 
-        // Barra de Vida
         ctx.fillStyle = '#ff0055';
-        ctx.fillRect(boss.x - 40, boss.y - 45, 80, 6);
+        ctx.fillRect(boss.x - 45, boss.y - 45, 90, 6);
         ctx.fillStyle = '#00ff88';
-        ctx.fillRect(boss.x - 40, boss.y - 45, 80 * (boss.hp / boss.maxHp), 6);
+        ctx.fillRect(boss.x - 45, boss.y - 45, 90 * (boss.hp / boss.maxHp), 6);
       }
 
-      // Jogador
+      // Nave do Jogador
       if (!gameOver) {
         ctx.fillStyle = '#00e5ff';
         ctx.beginPath();
@@ -444,7 +486,7 @@
 
       // Game Over
       if (gameOver) {
-        ctx.fillStyle = 'rgba(2, 2, 10, 0.85)';
+        ctx.fillStyle = 'rgba(2, 2, 10, 0.88)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.fillStyle = '#ff0055';
@@ -454,9 +496,9 @@
 
         ctx.fillStyle = '#fff';
         ctx.font = '16px Segoe UI';
-        ctx.fillText(`Fase Alcançada: ${level}`, canvas.width / 2, canvas.height / 2 + 15);
+        ctx.fillText(`Fase Alcançada: ${currentLevelIndex + 1}`, canvas.width / 2, canvas.height / 2 + 15);
         ctx.fillText(`Pontuação Final: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
-        ctx.fillText('Recarregue a página para jogar novamente', canvas.width / 2, canvas.height / 2 + 75);
+        ctx.fillText('Recarregue para jogar novamente', canvas.width / 2, canvas.height / 2 + 75);
       }
     }
 
