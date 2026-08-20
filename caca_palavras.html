@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Caça-Palavras: Conhecimentos Gerais</title>
+  <title>Caça-Palavras: Conhecimentos Gerais por Fases</title>
   <style>
     * {
       margin: 0;
@@ -12,8 +12,8 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     body {
-      background-color: #0f172a;
-      color: #f8fafc;
+      background-color: #121820;
+      color: #e2e8f0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -22,22 +22,18 @@
       padding: 20px;
     }
     h1 {
-      color: #38bdf8;
-      margin-bottom: 5px;
-      font-size: 2rem;
+      color: #f59e0b;
+      margin-bottom: 4px;
+      font-size: 2.2rem;
       text-transform: uppercase;
       letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
     }
     p.subtitle {
-      color: #94a3b8;
-      font-size: 0.95rem;
-      margin-bottom: 15px;
-    }
-    #timer {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #ef4444;
-      margin-bottom: 15px;
+      color: #10b981;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
     }
     .game-container {
       display: flex;
@@ -45,23 +41,25 @@
       flex-wrap: wrap;
       justify-content: center;
       align-items: flex-start;
+      position: relative;
     }
     #grid {
       display: grid;
       grid-template-columns: repeat(15, 32px);
       grid-template-rows: repeat(15, 32px);
       gap: 2px;
-      background-color: #334155;
-      padding: 8px;
-      border-radius: 8px;
+      background-color: #1e293b;
+      padding: 10px;
+      border-radius: 12px;
       user-select: none;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      border: 1px solid #334155;
     }
     .cell {
       width: 32px;
       height: 32px;
-      background-color: #1e293b;
-      color: #e2e8f0;
+      background-color: #0f172a;
+      color: #cbd5e1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -69,86 +67,170 @@
       font-size: 0.95rem;
       cursor: pointer;
       border-radius: 4px;
-      transition: background-color 0.15s;
+      transition: background-color 0.15s, color 0.15s;
     }
     .cell:hover {
-      background-color: #475569;
+      background-color: #334155;
     }
     .cell.selected {
-      background-color: #0284c7;
+      background-color: #d97706;
       color: #fff;
     }
     .cell.found {
-      background-color: #16a34a !important;
+      background-color: #059669 !important;
       color: #fff;
     }
     .sidebar {
       background-color: #1e293b;
-      padding: 20px;
-      border-radius: 8px;
-      min-width: 240px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      padding: 24px;
+      border-radius: 12px;
+      min-width: 250px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      border: 1px solid #334155;
     }
     .sidebar h2 {
       font-size: 1.1rem;
-      color: #38bdf8;
+      color: #f59e0b;
       margin-bottom: 12px;
       border-bottom: 2px solid #334155;
-      padding-bottom: 5px;
+      padding-bottom: 6px;
     }
     ul {
       list-style: none;
     }
     li {
       padding: 6px 0;
-      font-size: 0.9rem;
-      color: #cbd5e1;
+      font-size: 0.95rem;
+      color: #94a3b8;
       font-weight: 600;
       letter-spacing: 1px;
     }
     li.found-word {
       text-decoration: line-through;
-      color: #4ade80;
+      color: #34d399;
+    }
+
+    /* Modal de Mudança de Fase */
+    #phase-modal {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 12px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 20px;
+      text-align: center;
+    }
+    #phase-modal h2 {
+      color: #10b981;
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    #phase-modal p {
+      color: #cbd5e1;
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+    }
+    #next-btn {
+      padding: 12px 28px;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #0f172a;
+      background-color: #f59e0b;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    #next-btn:hover {
+      background-color: #10b981;
+      color: #fff;
+      transform: scale(1.05);
     }
   </style>
 </head>
 <body>
 
-  <h1>Desafio Global</h1>
-  <p class="subtitle">Conhecimentos Gerais a Nível Mundial</p>
-  <div id="timer">Tempo restante: <span id="time-val">03:00</span></div>
+  <h1>Caça-Palavras Global</h1>
+  <p class="subtitle" id="phase-label">Fase 1: Geografia e Impérios</p>
 
   <div class="game-container">
     <div id="grid"></div>
     <div class="sidebar">
-      <h2>Termos Mundiais</h2>
+      <h2>Palavras Ocultas</h2>
       <ul id="word-list"></ul>
+    </div>
+
+    <div id="phase-modal">
+      <h2 id="modal-title">FASE CONCLUÍDA!</h2>
+      <p id="modal-desc">Você dominou esta etapa do conhecimento global.</p>
+      <button id="next-btn" onclick="nextPhase()">Próxima Fase</button>
     </div>
   </div>
 
   <script>
     const GRID_SIZE = 15;
-    
-    // Palavras de conhecimentos gerais mundiais (sem acentos ou espaços)
-    const WORDS = [
-      "MESOPOTAMIA",   // História Antiga
-      "KILIMANJARO",   // Geografia
-      "CONSTANTINOPLA",// História
-      "ANTARTIDA",     // Geografia Mundial
-      "BIODIVERSIDADE",// Ciência/Ambiente
-      "VERSALHES",     // História Mundial
-      "ESTRATOSFERA",  // Ciência
-      "PANGEIA"        // Geologia
+
+    // Configuração de Fases Temáticas
+    const STAGES = [
+      {
+        name: "Fase 1: Geografia e História",
+        words: [
+          "MESOPOTAMIA",
+          "KILIMANJARO",
+          "CONSTANTINOPLA",
+          "ANTARTIDA",
+          "VERSALHES",
+          "PANGEIA",
+          "MADAGASCAR",
+          "HIMALAIA"
+        ]
+      },
+      {
+        name: "Fase 2: Ciência e Astronomia",
+        words: [
+          "BIODIVERSIDADE",
+          "ESTRATOSFERA",
+          "ECLIPSE",
+          "FOTOSSINTESE",
+          "SUPERNOVA",
+          "TELESCOPIO",
+          "CROMOSSSOMA",
+          "GRAVIDADE"
+        ]
+      },
+      {
+        name: "Fase 3: Humanidades e Cultura",
+        words: [
+          "RENASCIMENTO",
+          "FILOSOFIA",
+          "ARQUEOLOGIA",
+          "HEGEMONIA",
+          "DEMOCRACIA",
+          "MITOLOGIA",
+          "LITERATURA",
+          "ILUMINISMO"
+        ]
+      }
     ];
 
-    const grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
-    const wordListEl = document.getElementById('word-list');
-    const gridEl = document.getElementById('grid');
-    
+    let currentPhase = 0;
+    let grid = [];
     let selectedCells = [];
     let isMouseDown = false;
     let foundWordsCount = 0;
-    let timeLeft = 180; // 3 minutos
+
+    const wordListEl = document.getElementById('word-list');
+    const gridEl = document.getElementById('grid');
+    const phaseLabel = document.getElementById('phase-label');
+    const phaseModal = document.getElementById('phase-modal');
 
     // Direções: [dx, dy]
     const DIRECTIONS = [
@@ -210,12 +292,21 @@
       }
     }
 
-    function initBoard() {
-      WORDS.forEach(word => placeWord(word));
+    function loadPhase() {
+      const stage = STAGES[currentPhase];
+      phaseLabel.textContent = stage.name;
+      foundWordsCount = 0;
+      grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
+
+      wordListEl.innerHTML = '';
+      gridEl.innerHTML = '';
+      phaseModal.style.display = 'none';
+
+      stage.words.forEach(word => placeWord(word));
       fillEmptySpaces();
 
       // Renderizar Sidebar
-      WORDS.forEach(word => {
+      stage.words.forEach(word => {
         const li = document.createElement('li');
         li.textContent = word;
         li.id = `word-${word}`;
@@ -238,9 +329,6 @@
           gridEl.appendChild(cell);
         }
       }
-
-      document.addEventListener('mouseup', endSelection);
-      startTimer();
     }
 
     function startSelection(cell) {
@@ -250,9 +338,7 @@
     }
 
     function handleMouseEnter(cell) {
-      if (isMouseDown) {
-        selectCell(cell);
-      }
+      if (isMouseDown) selectCell(cell);
     }
 
     function selectCell(cell) {
@@ -275,12 +361,13 @@
       if (!isMouseDown) return;
       isMouseDown = false;
 
+      const stage = STAGES[currentPhase];
       const selectedWord = selectedCells.map(cell => cell.textContent).join('');
       const reversedWord = selectedWord.split('').reverse().join('');
 
       let matchedWord = null;
-      if (WORDS.includes(selectedWord)) matchedWord = selectedWord;
-      else if (WORDS.includes(reversedWord)) matchedWord = reversedWord;
+      if (stage.words.includes(selectedWord)) matchedWord = selectedWord;
+      else if (stage.words.includes(reversedWord)) matchedWord = reversedWord;
 
       if (matchedWord) {
         const listEl = document.getElementById(`word-${matchedWord}`);
@@ -289,8 +376,8 @@
           selectedCells.forEach(cell => cell.classList.add('found'));
           foundWordsCount++;
 
-          if (foundWordsCount === WORDS.length) {
-            setTimeout(() => alert("Excelente! Você provou ter ótimos conhecimentos gerais e venceu o jogo!"), 200);
+          if (foundWordsCount === stage.words.length) {
+            setTimeout(showPhaseModal, 300);
           }
         }
       }
@@ -298,23 +385,31 @@
       clearSelection();
     }
 
-    function startTimer() {
-      const timerVal = document.getElementById('time-val');
-      const interval = setInterval(() => {
-        timeLeft--;
-        const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-        const secs = String(timeLeft % 60).padStart(2, '0');
-        timerVal.textContent = `${mins}:${secs}`;
+    function showPhaseModal() {
+      const modalTitle = document.getElementById('modal-title');
+      const modalDesc = document.getElementById('modal-desc');
+      const nextBtn = document.getElementById('next-btn');
 
-        if (timeLeft <= 0) {
-          clearInterval(interval);
-          alert("O tempo acabou! Recarregue a página para tentar novamente.");
-          location.reload();
-        }
-      }, 1000);
+      if (currentPhase + 1 < STAGES.length) {
+        modalTitle.textContent = "FASE CONCLUÍDA!";
+        modalDesc.textContent = `Preparado para a ${STAGES[currentPhase + 1].name}?`;
+        nextBtn.style.display = 'inline-block';
+      } else {
+        modalTitle.textContent = "JOGO CONCLUÍDO!";
+        modalDesc.textContent = "Parabéns! Você encontrou todas as palavras em todas as fases de conhecimentos gerais.";
+        nextBtn.style.display = 'none';
+      }
+
+      phaseModal.style.display = 'flex';
     }
 
-    initBoard();
+    function nextPhase() {
+      currentPhase++;
+      loadPhase();
+    }
+
+    document.addEventListener('mouseup', endSelection);
+    loadPhase();
   </script>
 </body>
-</html>.
+</html>
