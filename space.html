@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Defensores do Espaço - Fases</title>
+  <title>Defensores do Espaço - Avanço Manual</title>
   <style>
     * {
       margin: 0;
@@ -46,6 +46,48 @@
     .score { color: #00e5ff; }
     .level { color: #ffcc00; }
     .health { color: #ff0055; }
+
+    /* Tela de Transição de Fase */
+    #level-screen {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 5, 21, 0.9);
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      z-index: 10;
+    }
+    #level-screen h2 {
+      font-size: 2.2rem;
+      color: #00ff88;
+      margin-bottom: 10px;
+    }
+    #level-screen p {
+      font-size: 1.1rem;
+      margin-bottom: 25px;
+      color: #ccc;
+    }
+    #next-btn {
+      padding: 12px 30px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #050515;
+      background-color: #00e5ff;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.5);
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    #next-btn:hover {
+      background-color: #00ff88;
+      transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
@@ -56,23 +98,31 @@
       <div class="level">Fase: <span id="level-val">1</span></div>
       <div class="health">Escudo: <span id="health-val">100</span>%</div>
     </div>
+
+    <!-- Overlay para passar de fase -->
+    <div id="level-screen">
+      <h2>FASE CONCLUÍDA!</h2>
+      <p id="level-summary">Você destruiu o chefe da fase.</p>
+      <button id="next-btn" onclick="startNextLevel()">Próxima Fase</button>
+    </div>
+
     <canvas id="canvas" width="480" height="640"></canvas>
   </div>
 
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    const levelScreen = document.getElementById('level-screen');
 
     // Estado Geral do Jogo
     let score = 0;
     let health = 100;
     let level = 1;
     let killsInLevel = 0;
-    const KILLS_PER_LEVEL = 15; // Inimigos necessários para o Chefe
+    const KILLS_PER_LEVEL = 15;
     let gameOver = false;
+    let levelCompleted = false;
     let frame = 0;
-    let phaseMessage = "FASE 1";
-    let messageTimer = 120; // Duração do aviso de fase em frames
 
     // Jogador
     const player = {
@@ -100,9 +150,9 @@
     });
 
     // Entidades
-    const bullets = [];
-    const meteors = [];
-    const crystals = [];
+    let bullets = [];
+    let meteors = [];
+    let crystals = [];
     const stars = [];
     let boss = null;
 
@@ -116,7 +166,7 @@
       });
     }
 
-    // Criar o Chefão da Fase
+    // Criar o Chefão
     function spawnBoss() {
       boss = {
         x: canvas.width / 2,
@@ -128,35 +178,44 @@
         maxHp: 30 + level * 20,
         dx: 2 + level * 0.5
       };
-      phaseMessage = `ALERTA: CHEFÃO DA FASE ${level}!`;
-      messageTimer = 120;
     }
 
-    // Avançar de Fase
-    function nextLevel() {
+    // Acionado quando o Chefe Morre
+    function completeLevel() {
+      levelCompleted = true;
+      document.getElementById('level-summary').textContent = `Você dominou a Fase ${level}! Clique para avançar.`;
+      levelScreen.style.display = 'flex';
+      canvas.style.cursor = 'default';
+    }
+
+    // Ação do Botão "Próxima Fase"
+    function startNextLevel() {
       level++;
       killsInLevel = 0;
       boss = null;
-      phaseMessage = `FASE ${level}`;
-      messageTimer = 120;
-      health = Math.min(100, health + 30); // Bônus de vida ao passar de fase
+      bullets = [];
+      meteors = [];
+      crystals = [];
+      levelCompleted = false;
+      health = Math.min(100, health + 30); // Recupera vida
+
+      levelScreen.style.display = 'none';
+      canvas.style.cursor = 'none';
     }
 
-    // Loop de Atualização de Lógica
+    // Loop de Atualização
     function update() {
-      if (gameOver) return;
+      if (gameOver || levelCompleted) return;
       frame++;
 
-      if (messageTimer > 0) messageTimer--;
-
-      // Movimentação da Nave
+      // Movimento da Nave
       player.x += (targetX - player.x) * player.speed;
       player.y += (targetY - player.y) * player.speed;
 
       player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
       player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
 
-      // Atirar (Tiro rápido automático)
+      // Atirar
       if (frame % 8 === 0) {
         bullets.push({ x: player.x, y: player.y - 15, speed: 10 });
       }
@@ -167,15 +226,15 @@
         if (bullets[i].y < -10) bullets.splice(i, 1);
       }
 
-      // Spawn de Inimigos / Meteoros (Mais frequentes conforme o nível aumenta)
+      // Spawn de Inimigos
       const spawnRate = Math.max(10, 35 - level * 3);
       if (!boss && frame % spawnRate === 0) {
         meteors.push({
           x: Math.random() * (canvas.width - 40) + 20,
           y: -30,
           radius: 12 + Math.random() * 16,
-          speed: (2 + level * 0.5) + Math.random() * 2, // Fica mais rápido a cada fase
-          hp: 1 + Math.floor(level / 2) // Inimigos ficam mais resistentes
+          speed: (2 + level * 0.5) + Math.random() * 2,
+          hp: 1 + Math.floor(level / 2)
         });
       }
 
@@ -197,7 +256,6 @@
               killsInLevel++;
               meteors.splice(i, 1);
 
-              // Invocar o Chefe se bater a cota de destruição
               if (killsInLevel >= KILLS_PER_LEVEL && !boss) {
                 spawnBoss();
               }
@@ -216,12 +274,12 @@
         }
       }
 
-      // Atualizar Lógica do Chefão (Se presente)
+      // Lógica do Chefão
       if (boss) {
-        if (boss.y < boss.targetY) boss.y += 2; // Entrada do chefe
+        if (boss.y < boss.targetY) boss.y += 2;
 
         boss.x += boss.dx;
-        if (boss.x > canvas.width - 50 || boss.x < 50) boss.dx *= -1; // Movimento lateral
+        if (boss.x > canvas.width - 50 || boss.x < 50) boss.dx *= -1;
 
         // Colisão Tiro x Chefão
         for (let j = bullets.length - 1; j >= 0; j--) {
@@ -232,7 +290,7 @@
 
             if (boss.hp <= 0) {
               score += 500 * level;
-              nextLevel();
+              completeLevel();
               break;
             }
           }
@@ -245,7 +303,7 @@
         }
       }
 
-      // Atualizar Cristais
+      // Cristais
       for (let i = crystals.length - 1; i >= 0; i--) {
         const c = crystals[i];
         c.y += c.speed;
@@ -261,7 +319,7 @@
 
       // Estrelas
       stars.forEach(s => {
-        s.y += s.speed + (level * 0.2); // Fundo acelera conforme o nível
+        s.y += s.speed + (level * 0.2);
         if (s.y > canvas.height) s.y = 0;
       });
 
@@ -304,7 +362,6 @@
         ctx.fillStyle = '#aa00ff';
         ctx.fillRect(boss.x - boss.width / 2, boss.y - boss.height / 2, boss.width, boss.height);
 
-        // Barra de vida do Chefão
         ctx.fillStyle = '#ff0055';
         ctx.fillRect(boss.x - 40, boss.y - 45, 80, 6);
         ctx.fillStyle = '#00ff88';
@@ -323,17 +380,6 @@
 
         ctx.fillStyle = '#ff0055';
         ctx.fillRect(player.x - 4, player.y + 12, 8, 8 + Math.sin(frame) * 4);
-      }
-
-      // Mensagem de Transição de Fase
-      if (messageTimer > 0) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(0, canvas.height / 2 - 40, canvas.width, 80);
-
-        ctx.fillStyle = '#ffcc00';
-        ctx.font = 'bold 24px Segoe UI';
-        ctx.textAlign = 'center';
-        ctx.fillText(phaseMessage, canvas.width / 2, canvas.height / 2 + 8);
       }
 
       // Game Over
