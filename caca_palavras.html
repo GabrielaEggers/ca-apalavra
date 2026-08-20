@@ -37,11 +37,12 @@
     }
     .game-container {
       display: flex;
-      gap: 30px;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
       position: relative;
+      max-width: 550px;
+      width: 100%;
     }
     #grid {
       display: grid;
@@ -80,34 +81,47 @@
       background-color: #059669 !important;
       color: #fff;
     }
-    .sidebar {
+
+    /* Painel Inferior de Palavras (Lado a Lado) */
+    .words-panel {
       background-color: #1e293b;
-      padding: 24px;
+      padding: 16px 20px;
       border-radius: 12px;
-      min-width: 250px;
+      width: 100%;
       box-shadow: 0 10px 30px rgba(0,0,0,0.4);
       border: 1px solid #334155;
+      text-align: center;
     }
-    .sidebar h2 {
-      font-size: 1.1rem;
+    .words-panel h2 {
+      font-size: 1rem;
       color: #f59e0b;
       margin-bottom: 12px;
-      border-bottom: 2px solid #334155;
-      padding-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
-    ul {
+    ul#word-list {
       list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 18px;
     }
     li {
-      padding: 6px 0;
-      font-size: 0.95rem;
-      color: #94a3b8;
+      font-size: 0.9rem;
+      color: #cbd5e1;
       font-weight: 600;
       letter-spacing: 1px;
+      background-color: #0f172a;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      transition: all 0.2s;
     }
     li.found-word {
       text-decoration: line-through;
       color: #34d399;
+      background-color: rgba(5, 150, 105, 0.2);
+      border-color: #059669;
     }
 
     /* Modal de Mudança de Fase */
@@ -159,11 +173,12 @@
 <body>
 
   <h1>Caça-Palavras Global</h1>
-  <p class="subtitle" id="phase-label">Fase 1: Geografia e Impérios</p>
+  <p class="subtitle" id="phase-label">Fase 1: Geografia e História</p>
 
   <div class="game-container">
     <div id="grid"></div>
-    <div class="sidebar">
+    
+    <div class="words-panel">
       <h2>Palavras Ocultas</h2>
       <ul id="word-list"></ul>
     </div>
@@ -178,7 +193,7 @@
   <script>
     const GRID_SIZE = 15;
 
-    // Configuração de Fases Temáticas
+    // Fases Temáticas
     const STAGES = [
       {
         name: "Fase 1: Geografia e História",
@@ -202,7 +217,7 @@
           "FOTOSSINTESE",
           "SUPERNOVA",
           "TELESCOPIO",
-          "CROMOSSSOMA",
+          "CROMOSSOMA",
           "GRAVIDADE"
         ]
       },
@@ -305,7 +320,7 @@
       stage.words.forEach(word => placeWord(word));
       fillEmptySpaces();
 
-      // Renderizar Sidebar
+      // Renderizar Palavras Ocultas Lado a Lado
       stage.words.forEach(word => {
         const li = document.createElement('li');
         li.textContent = word;
