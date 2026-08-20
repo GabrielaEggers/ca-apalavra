@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caça-Palavras Extremo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      color: #38bdf8;
+      margin-bottom: 10px;
+      font-size: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    #timer {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #ef4444;
+      margin-bottom: 15px;
+    }
+    .game-container {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(15, 32px);
+      grid-template-rows: repeat(15, 32px);
+      gap: 2px;
+      background-color: #334155;
+      padding: 8px;
+      border-radius: 8px;
+      user-select: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .cell {
+      width: 32px;
+      height: 32px;
+      background-color: #1e293b;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.15s;
+    }
+    .cell:hover {
+      background-color: #475569;
+    }
+    .cell.selected {
+      background-color: #0284c7;
+      color: #fff;
+    }
+    .cell.found {
+      background-color: #16a34a !important;
+      color: #fff;
+    }
+    .sidebar {
+      background-color: #1e293b;
+      padding: 20px;
+      border-radius: 8px;
+      min-width: 220px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .sidebar h2 {
+      font-size: 1.1rem;
+      color: #94a3b8;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 5px;
+    }
+    ul {
+      list-style: none;
+    }
+    li {
+      padding: 6px 0;
+      font-size: 0.95rem;
+      color: #cbd5e1;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    li.found-word {
+      text-decoration: line-through;
+      color: #4ade80;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Caça-Palavras Extremo</h1>
+  <div id="timer">Tempo restante: <span id="time-val">03:00</span></div>
+
+  <div class="game-container">
+    <div id="grid"></div>
+    <div class="sidebar">
+      <h2>Palavras Ocultas</h2>
+      <ul id="word-list"></ul>
+    </div>
+  </div>
+
+  <script>
+    const GRID_SIZE = 15;
+    const WORDS = [
+      "JUXTAPOSICAO",
+      "PARADIGMATICO",
+      "ECLIPSE",
+      "VEROSIMILHANCA",
+      "INCONSTITUCIONAL",
+      "METAMORFOSE",
+      "HEGEMONIA",
+      "ANACRONISMO"
+    ];
+
+    const grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
+    const wordListEl = document.getElementById('word-list');
+    const gridEl = document.getElementById('grid');
+    
+    let selectedCells = [];
+    let isMouseDown = false;
+    let foundWordsCount = 0;
+    let timeLeft = 180; // 3 minutos
+
+    // Direções: [dx, dy] (Horizontal, Vertical, Diagonais, Invertidos)
+    const DIRECTIONS = [
+      [0, 1],   // Direita
+      [1, 0],   // Baixo
+      [1, 1],   // Diagonal Baixo-Direita
+      [-1, 1],  // Diagonal Cima-Direita
+      [0, -1],  // Esquerda
+      [-1, 0],  // Cima
+      [-1, -1], // Diagonal Cima-Esquerda
+      [1, -1]   // Diagonal Baixo-Esquerda
+    ];
+
+    function placeWord(word) {
+      let placed = false;
+      let attempts = 0;
+
+      while (!placed && attempts < 500) {
+        attempts++;
+        const dir = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+        const startX = Math.floor(Math.random() * GRID_SIZE);
+        const startY = Math.floor(Math.random() * GRID_SIZE);
+
+        const endX = startX + dir[0] * (word.length - 1);
+        const endY = startY + dir[1] * (word.length - 1);
+
+        if (endX >= 0 && endX < GRID_SIZE && endY >= 0 && endY < GRID_SIZE) {
+          let canPlace = true;
+
+          for (let i = 0; i < word.length; i++) {
+            const x = startX + dir[0] * i;
+            const y = startY + dir[1] * i;
+            if (grid[x][y] !== '' && grid[x][y] !== word[i]) {
+              canPlace = false;
+              break;
+            }
+          }
+
+          if (canPlace) {
+            for (let i = 0; i < word.length; i++) {
+              const x = startX + dir[0] * i;
+              const y = startY + dir[1] * i;
+              grid[x][y] = word[i];
+            }
+            placed = true;
+          }
+        }
+      }
+    }
+
+    function fillEmptySpaces() {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (grid[r][c] === '') {
+            grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+          }
+        }
+      }
+    }
+
+    function initBoard() {
+      WORDS.forEach(word => placeWord(word));
+      fillEmptySpaces();
+
+      // Renderizar Sidebar
+      WORDS.forEach(word => {
+        const li = document.createElement('li');
+        li.textContent = word;
+        li.id = `word-${word}`;
+        wordListEl.appendChild(li);
+      });
+
+      // Renderizar Grade
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.textContent = grid[r][c];
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+
+          cell.addEventListener('mousedown', () => startSelection(cell));
+          cell.addEventListener('mouseenter', () => handleMouseEnter(cell));
+          cell.addEventListener('mouseup', endSelection);
+
+          gridEl.appendChild(cell);
+        }
+      }
+
+      document.addEventListener('mouseup', endSelection);
+      startTimer();
+    }
+
+    function startSelection(cell) {
+      isMouseDown = true;
+      clearSelection();
+      selectCell(cell);
+    }
+
+    function handleMouseEnter(cell) {
+      if (isMouseDown) {
+        selectCell(cell);
+      }
+    }
+
+    function selectCell(cell) {
+      if (!selectedCells.includes(cell)) {
+        cell.classList.add('selected');
+        selectedCells.push(cell);
+      }
+    }
+
+    function clearSelection() {
+      selectedCells.forEach(cell => {
+        if (!cell.classList.contains('found')) {
+          cell.classList.remove('selected');
+        }
+      });
+      selectedCells = [];
+    }
+
+    function endSelection() {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+
+      const selectedWord = selectedCells.map(cell => cell.textContent).join('');
+      const reversedWord = selectedWord.split('').reverse().join('');
+
+      let matchedWord = null;
+      if (WORDS.includes(selectedWord)) matchedWord = selectedWord;
+      else if (WORDS.includes(reversedWord)) matchedWord = reversedWord;
+
+      if (matchedWord) {
+        const listEl = document.getElementById(`word-${matchedWord}`);
+        if (listEl && !listEl.classList.contains('found-word')) {
+          listEl.classList.add('found-word');
+          selectedCells.forEach(cell => cell.classList.add('found'));
+          foundWordsCount++;
+
+          if (foundWordsCount === WORDS.length) {
+            setTimeout(() => alert("Parabéns! Você encontrou todas as palavras no modo extremo!"), 200);
+          }
+        }
+      }
+
+      clearSelection();
+    }
+
+    function startTimer() {
+      const timerVal = document.getElementById('time-val');
+      const interval = setInterval(() => {
+        timeLeft--;
+        const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+        const secs = String(timeLeft % 60).padStart(2, '0');
+        timerVal.textContent = `${mins}:${secs}`;
+
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          alert("O tempo acabou! Tente novamente.");
+          location.reload();
+        }
+      }, 1000);
+    }
+
+    initBoard();
+  </script>
+</body>
+</html>
