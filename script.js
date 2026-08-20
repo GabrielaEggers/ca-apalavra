@@ -1,213 +1,224 @@
-// Configuração Básica da Cena 3D
+// --- CONFIGURAÇÃO DA CENA ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // Céu azul
-scene.fog = new THREE.Fog(0x87ceeb, 20, 80);
+scene.background = new THREE.Color(0xa0c4ff);
+scene.fog = new THREE.FogExp2(0xa0c4ff, 0.015);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
 document.body.appendChild(renderer.domElement);
 
-// Iluminação
+// --- ILUMINAÇÃO REALISTA ---
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(20, 40, 20);
-dirLight.castShadow = true;
-dirLight.shadow.mapSize.width = 2048;
-dirLight.shadow.mapSize.height = 2048;
-scene.add(dirLight);
+const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.5);
+sunLight.position.set(50, 80, 30);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 150;
+const d = 40;
+sunLight.shadow.camera.left = -d;
+sunLight.shadow.camera.right = d;
+sunLight.shadow.camera.top = d;
+sunLight.shadow.camera.bottom = -d;
+scene.add(sunLight);
 
-// Terreno
-const groundGeo = new THREE.PlaneGeometry(100, 100);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x557a2b });
+// --- TERRENO E OBSTÁCULOS ---
+const groundGeo = new THREE.PlaneGeometry(200, 200, 64, 64);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a5a40, roughness: 0.9, metalness: 0.1 });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Criando o Personagem (Malha 3D de Robô/Humanoide Básico)
-const playerGroup = new THREE.Group();
-
-// Corpo
-const bodyGeo = new THREE.CylinderGeometry(0.5, 0.3, 1.2, 8);
-const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2196f3 });
-const body = new THREE.Mesh(bodyGeo, bodyMat);
-body.position.y = 1;
-body.castShadow = true;
-playerGroup.add(body);
-
-// Cabeça
-const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
-const headMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
-const head = new THREE.Mesh(headGeo, headMat);
-head.position.y = 1.8;
-head.castShadow = true;
-playerGroup.add(head);
-
-scene.add(playerGroup);
-
-// Estado do Jogador
-const stats = { health: 100, hunger: 100, wood: 0, stone: 0, food: 0 };
-const keys = {};
-
-// Gerador de Recursos no Mundo (Árvores, Pedras e Comida)
-const resources = [];
+const obstacles = [];
 
 function createTree(x, z) {
   const group = new THREE.Group();
+  
+  // Tronco
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.3, 2),
-    new THREE.MeshStandardMaterial({ color: 0x5c4033 })
+    new THREE.CylinderGeometry(0.4, 0.6, 4, 8),
+    new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 })
   );
-  trunk.position.y = 1;
+  trunk.position.y = 2;
   trunk.castShadow = true;
+  trunk.receiveShadow = true;
   group.add(trunk);
 
-  const leaves = new THREE.Mesh(
-    new THREE.ConeGeometry(1.2, 3, 8),
-    new THREE.MeshStandardMaterial({ color: 0x2e8b57 })
-  );
-  leaves.position.y = 2.8;
-  leaves.castShadow = true;
-  group.add(leaves);
+  // Copas
+  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.6 });
+  for (let i = 0; i < 3; i++) {
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(2.2 - i * 0.4, 2.5, 8), leavesMat);
+    leaves.position.y = 3.5 + i * 1.3;
+    leaves.castShadow = true;
+    group.add(leaves);
+  }
 
   group.position.set(x, 0, z);
-  group.userData = { type: 'wood' };
   scene.add(group);
-  resources.push(group);
+
+  // Adiciona caixa de colisão para a árvore
+  const box = new THREE.Box3().setFromObject(trunk);
+  obstacles.push(box);
 }
 
 function createRock(x, z) {
   const rock = new THREE.Mesh(
-    new THREE.DodecahedronGeometry(0.6),
-    new THREE.MeshStandardMaterial({ color: 0x808080 })
+    new THREE.DodecahedronGeometry(1.2 + Math.random() * 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x6c757d, roughness: 0.8 })
   );
-  rock.position.set(x, 0.4, z);
+  rock.position.set(x, 0.8, z);
+  rock.rotation.set(Math.random(), Math.random(), Math.random());
   rock.castShadow = true;
-  rock.userData = { type: 'stone' };
+  rock.receiveShadow = true;
   scene.add(rock);
-  resources.push(rock);
+
+  const box = new THREE.Box3().setFromObject(rock);
+  obstacles.push(box);
 }
 
-function createFoodNode(x, z) {
-  const food = new THREE.Mesh(
-    new THREE.SphereGeometry(0.4, 8, 8),
-    new THREE.MeshStandardMaterial({ color: 0xff4500 })
-  );
-  food.position.set(x, 0.4, z);
-  food.castShadow = true;
-  food.userData = { type: 'food' };
-  scene.add(food);
-  resources.push(food);
+// Gerar floresta e rochas
+for (let i = 0; i < 35; i++) {
+  const x = (Math.random() - 0.5) * 160;
+  const z = (Math.random() - 0.5) * 160;
+  if (Math.hypot(x, z) > 5) createTree(x, z);
 }
-
-// Espalhar itens pelo terreno
 for (let i = 0; i < 20; i++) {
-  createTree((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
-  createRock((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
-  createFoodNode((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+  const x = (Math.random() - 0.5) * 160;
+  const z = (Math.random() - 0.5) * 160;
+  if (Math.hypot(x, z) > 5) createRock(x, z);
 }
 
-// Controles
+// --- PERSONAGEM EM TERCEIRA PESSOA ---
+const playerGroup = new THREE.Group();
+
+const bodyMesh = new THREE.Mesh(
+  new THREE.CapsuleGeometry(0.4, 1, 4, 8),
+  new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3 })
+);
+bodyMesh.position.y = 0.9;
+bodyMesh.castShadow = true;
+playerGroup.add(bodyMesh);
+
+scene.add(playerGroup);
+
+// --- CONTROLES E FÍSICA ---
+const keys = {};
+let cameraAngleX = 0;
+let cameraAngleY = 0.3;
+let isLocked = false;
+
+document.addEventListener('click', () => {
+  document.body.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+  isLocked = document.pointerLockElement === document.body;
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isLocked) return;
+  cameraAngleX -= e.movementX * 0.003;
+  cameraAngleY += e.movementY * 0.003;
+  cameraAngleY = Math.max(0.1, Math.min(1.2, cameraAngleY)); // Limita inclinação
+});
+
 window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
-window.addEventListener('resize', onWindowResize);
 
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
+let velocityY = 0;
+const gravity = -20;
+let isGrounded = true;
 
-// Loop de Atualização
-const speed = 0.15;
-let walkCycle = 0;
-
-function update() {
-  if (stats.health <= 0) return;
-
+function updatePlayer(delta) {
+  const moveSpeed = keys['shift'] ? 10 : 5;
   let moveX = 0;
   let moveZ = 0;
 
-  if (keys['w'] || keys['arrowup']) moveZ -= 1;
-  if (keys['s'] || keys['arrowdown']) moveZ += 1;
-  if (keys['a'] || keys['arrowleft']) moveX -= 1;
-  if (keys['d'] || keys['arrowright']) moveX += 1;
+  if (keys['w']) moveZ -= 1;
+  if (keys['s']) moveZ += 1;
+  if (keys['a']) moveX -= 1;
+  if (keys['d']) moveX += 1;
 
+  // Direção relativa à rotação da câmera
   if (moveX !== 0 || moveZ !== 0) {
-    // Normalizar movimento diagonal
     const length = Math.hypot(moveX, moveZ);
     moveX /= length;
     moveZ /= length;
 
-    playerGroup.position.x += moveX * speed;
-    playerGroup.position.z += moveZ * speed;
+    const angle = cameraAngleX;
+    const dx = (moveX * Math.cos(angle) + moveZ * Math.sin(angle)) * moveSpeed * delta;
+    const dz = (-moveX * Math.sin(angle) + moveZ * Math.cos(angle)) * moveSpeed * delta;
 
-    // Girar o personagem na direção do movimento
-    const targetAngle = Math.atan2(moveX, moveZ);
-    playerGroup.rotation.y = targetAngle;
+    // Testar colisões nos obstáculos
+    const nextPos = playerGroup.position.clone().add(new THREE.Vector3(dx, 0, dz));
+    const playerBox = new THREE.Box3().setFromCenterAndSize(
+      nextPos.clone().add(new THREE.Vector3(0, 0.9, 0)),
+      new THREE.Vector3(0.8, 1.8, 0.8)
+    );
 
-    // Animação simples de caminhada (oscilação da cabeça/corpo)
-    walkCycle += 0.2;
-    body.position.y = 1 + Math.sin(walkCycle) * 0.05;
-
-    // Gastar fome ao andar
-    stats.hunger -= 0.03;
-  } else {
-    stats.hunger -= 0.01;
-  }
-
-  // Limite das bordas do mapa
-  playerGroup.position.x = Math.max(-48, Math.min(48, playerGroup.position.x));
-  playerGroup.position.z = Math.max(-48, Math.min(48, playerGroup.position.z));
-
-  // Sistema de Fome e Vida
-  if (stats.hunger <= 0) {
-    stats.hunger = 0;
-    stats.health -= 0.08;
-  }
-
-  // Coleta de Recursos por Aproximação
-  for (let i = resources.length - 1; i >= 0; i--) {
-    const res = resources[i];
-    const dist = playerGroup.position.distanceTo(res.position);
-
-    if (dist < 1.5) {
-      const type = res.userData.type;
-      if (type === 'wood') stats.wood++;
-      if (type === 'stone') stats.stone++;
-      if (type === 'food') {
-        stats.food++;
-        stats.hunger = Math.min(100, stats.hunger + 15); // Come automaticamente ao coletar comida
+    let collided = false;
+    for (const obs of obstacles) {
+      if (playerBox.intersectsBox(obs)) {
+        collided = true;
+        break;
       }
+    }
 
-      scene.remove(res);
-      resources.splice(i, 1);
+    if (!collided) {
+      playerGroup.position.x += dx;
+      playerGroup.position.z += dz;
+      playerGroup.rotation.y = angle + Math.atan2(moveX, moveZ) + Math.PI;
     }
   }
 
-  // Atualização da Câmera em Terceira Pessoa (Segue o Personagem)
-  camera.position.x = playerGroup.position.x;
-  camera.position.y = playerGroup.position.y + 6;
-  camera.position.z = playerGroup.position.z + 10;
-  camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1, playerGroup.position.z);
+  // Pulo e Gravidade
+  if (keys[' '] && isGrounded) {
+    velocityY = 8;
+    isGrounded = false;
+  }
 
-  // Atualizar HUD
-  document.getElementById('health-val').textContent = Math.max(0, Math.floor(stats.health));
-  document.getElementById('hunger-val').textContent = Math.max(0, Math.floor(stats.hunger));
-  document.getElementById('wood-val').textContent = stats.wood;
-  document.getElementById('stone-val').textContent = stats.stone;
-  document.getElementById('food-val').textContent = stats.food;
+  velocityY += gravity * delta;
+  playerGroup.position.y += velocityY * delta;
+
+  if (playerGroup.position.y <= 0) {
+    playerGroup.position.y = 0;
+    velocityY = 0;
+    isGrounded = true;
+  }
+
+  // Câmera Orbital
+  const cameraDistance = 6;
+  camera.position.x = playerGroup.position.x + cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+  camera.position.y = playerGroup.position.y + 1.5 + cameraDistance * Math.sin(cameraAngleY);
+  camera.position.z = playerGroup.position.z + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+  camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
 }
 
-// Loop Principal
+// --- LOOP DE RENDERIZAÇÃO ---
+const clock = new THREE.Clock();
+
 function animate() {
   requestAnimationFrame(animate);
-  update();
+  const delta = Math.min(clock.getDelta(), 0.1);
+  updatePlayer(delta);
   renderer.render(scene, camera);
 }
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 animate();

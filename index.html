@@ -1,22 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sobrevivência 3D em Terceira Pessoa</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Importação da biblioteca Three.js via CDN -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jogo de Sobrevivência 3D Realista</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Three.js e PointerLockControls via CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
   <div id="ui-container">
     <div class="hud">
-      <p>Vida: <span id="health-val">100</span>%</p>
-      <p>Fome: <span id="hunger-val">100</span>%</p>
-      <p>Madeira: <span id="wood-val">0</span> | Pedra: <span id="stone-val">0</span> | Comida: <span id="food-val">0</span></p>
+      <h2>Sobrevivência 3D</h2>
+      <p>Vida: <span id="health">100</span>%</p>
+      <p>Madeiras: <span id="wood">0</span></p>
     </div>
-    <div class="controls-info">
-      Controles: <b>WASD</b> / <b>Setas</b> para andar
+    <div id="instructions">
+      <p>Clique na tela para controlar a câmera</p>
+      <p><b>WASD</b>: Mover | <b>Espaço</b>: Pular | <b>Shift</b>: Correr</p>
     </div>
   </div>
 
