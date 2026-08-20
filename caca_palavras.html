@@ -82,7 +82,7 @@
       color: #fff;
     }
 
-    /* Painel Inferior de Palavras (Lado a Lado) */
+    /* Painel Inferior de Palavras */
     .words-panel {
       background-color: #1e293b;
       padding: 16px 20px;
@@ -239,6 +239,7 @@
     let currentPhase = 0;
     let grid = [];
     let selectedCells = [];
+    let startCell = null;
     let isMouseDown = false;
     let foundWordsCount = 0;
 
@@ -247,7 +248,7 @@
     const phaseLabel = document.getElementById('phase-label');
     const phaseModal = document.getElementById('phase-modal');
 
-    // Direções: [dx, dy]
+    // Direções válidas: [dx, dy]
     const DIRECTIONS = [
       [0, 1],   // Direita
       [1, 0],   // Baixo
@@ -320,7 +321,6 @@
       stage.words.forEach(word => placeWord(word));
       fillEmptySpaces();
 
-      // Renderizar Palavras Ocultas Lado a Lado
       stage.words.forEach(word => {
         const li = document.createElement('li');
         li.textContent = word;
@@ -328,7 +328,6 @@
         wordListEl.appendChild(li);
       });
 
-      // Renderizar Grade
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
           const cell = document.createElement('div');
@@ -338,7 +337,7 @@
           cell.dataset.col = c;
 
           cell.addEventListener('mousedown', () => startSelection(cell));
-          cell.addEventListener('mouseenter', () => handleMouseEnter(cell));
+          cell.addEventListener('mouseenter', () => updateSelection(cell));
           cell.addEventListener('mouseup', endSelection);
 
           gridEl.appendChild(cell);
@@ -348,19 +347,48 @@
 
     function startSelection(cell) {
       isMouseDown = true;
+      startCell = cell;
       clearSelection();
-      selectCell(cell);
+      selectPath([cell]);
     }
 
-    function handleMouseEnter(cell) {
-      if (isMouseDown) selectCell(cell);
-    }
+    function updateSelection(targetCell) {
+      if (!isMouseDown || !startCell) return;
 
-    function selectCell(cell) {
-      if (!selectedCells.includes(cell)) {
-        cell.classList.add('selected');
-        selectedCells.push(cell);
+      const r1 = parseInt(startCell.dataset.row);
+      const c1 = parseInt(startCell.dataset.col);
+      const r2 = parseInt(targetCell.dataset.row);
+      const c2 = parseInt(targetCell.dataset.col);
+
+      const dr = r2 - r1;
+      const dc = c2 - c1;
+
+      // Verifica se o movimento está em uma linha reta perfeita (horizontal, vertical ou diagonal)
+      const isHorizontal = dr === 0 && dc !== 0;
+      const isVertical = dc === 0 && dr !== 0;
+      const isDiagonal = Math.abs(dr) === Math.abs(dc) && dr !== 0;
+
+      if (isHorizontal || isVertical || isDiagonal) {
+        const stepR = dr === 0 ? 0 : dr / Math.abs(dr);
+        const stepC = dc === 0 ? 0 : dc / Math.abs(dc);
+        const distance = Math.max(Math.abs(dr), Math.abs(dc));
+
+        const pathCells = [];
+        for (let i = 0; i <= distance; i++) {
+          const currR = r1 + i * stepR;
+          const currC = c1 + i * stepC;
+          const cellEl = document.querySelector(`.cell[data-row="${currR}"][data-col="${currC}"]`);
+          if (cellEl) pathCells.push(cellEl);
+        }
+
+        clearSelection();
+        selectPath(pathCells);
       }
+    }
+
+    function selectPath(pathCells) {
+      selectedCells = pathCells;
+      selectedCells.forEach(cell => cell.classList.add('selected'));
     }
 
     function clearSelection() {
@@ -398,6 +426,7 @@
       }
 
       clearSelection();
+      startCell = null;
     }
 
     function showPhaseModal() {
