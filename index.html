@@ -1,23 +1,35 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Caça-Palavras: Conhecimentos Gerais</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo de Sobrevivência 2D</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Caça-Palavras Mundial</h1>
-    <p class="subtitle">Encontre as 8 palavras de conhecimentos gerais escondidas na grade!</p>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <div id="ui-panel">
+      <div class="status-box">
+        <h3>Status</h3>
+        <p>Vida: <span id="health-val">100</span>%</p>
+        <p>Fome: <span id="hunger-val">100</span>%</p>
+        <p>Energia: <span id="stamina-val">100</span>%</p>
+      </div>
 
-    <div class="game-area">
-      <div id="grid" class="grid"></div>
+      <div class="status-box">
+        <h3>Inventário</h3>
+        <p>Madeira: <span id="wood-val">0</span></p>
+        <p>Pedra: <span id="stone-val">0</span></p>
+        <p>Comida: <span id="food-val">0</span></p>
+      </div>
 
-      <div class="sidebar">
-        <h2>Palavras</h2>
-        <ul id="word-list"></ul>
-        <button id="reset-btn">Reiniciar Jogo</button>
+      <div class="status-box">
+        <h3>Construção / Ações</h3>
+        <button onclick="craftItem('food')">Comer (+20 Fome)</button>
+        <button onclick="craftItem('camp')">Acampamento (10 Madeiras)</button>
+        <button onclick="craftItem('axe')">Machado de Pedra (5 Mad / 5 Ped)</button>
       </div>
     </div>
   </div>
