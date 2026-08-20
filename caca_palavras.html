@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Caça-Palavras Extremo</title>
+  <title>Caça-Palavras: Conhecimentos Gerais</title>
   <style>
     * {
       margin: 0;
@@ -23,10 +23,15 @@
     }
     h1 {
       color: #38bdf8;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
       font-size: 2rem;
       text-transform: uppercase;
       letter-spacing: 2px;
+    }
+    p.subtitle {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin-bottom: 15px;
     }
     #timer {
       font-size: 1.2rem;
@@ -81,12 +86,12 @@
       background-color: #1e293b;
       padding: 20px;
       border-radius: 8px;
-      min-width: 220px;
+      min-width: 240px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     }
     .sidebar h2 {
       font-size: 1.1rem;
-      color: #94a3b8;
+      color: #38bdf8;
       margin-bottom: 12px;
       border-bottom: 2px solid #334155;
       padding-bottom: 5px;
@@ -96,7 +101,7 @@
     }
     li {
       padding: 6px 0;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: #cbd5e1;
       font-weight: 600;
       letter-spacing: 1px;
@@ -109,28 +114,31 @@
 </head>
 <body>
 
-  <h1>Caça-Palavras Extremo</h1>
+  <h1>Desafio Global</h1>
+  <p class="subtitle">Conhecimentos Gerais a Nível Mundial</p>
   <div id="timer">Tempo restante: <span id="time-val">03:00</span></div>
 
   <div class="game-container">
     <div id="grid"></div>
     <div class="sidebar">
-      <h2>Palavras Ocultas</h2>
+      <h2>Termos Mundiais</h2>
       <ul id="word-list"></ul>
     </div>
   </div>
 
   <script>
     const GRID_SIZE = 15;
+    
+    // Palavras de conhecimentos gerais mundiais (sem acentos ou espaços)
     const WORDS = [
-      "JUXTAPOSICAO",
-      "PARADIGMATICO",
-      "ECLIPSE",
-      "VEROSIMILHANCA",
-      "INCONSTITUCIONAL",
-      "METAMORFOSE",
-      "HEGEMONIA",
-      "ANACRONISMO"
+      "MESOPOTAMIA",   // História Antiga
+      "KILIMANJARO",   // Geografia
+      "CONSTANTINOPLA",// História
+      "ANTARTIDA",     // Geografia Mundial
+      "BIODIVERSIDADE",// Ciência/Ambiente
+      "VERSALHES",     // História Mundial
+      "ESTRATOSFERA",  // Ciência
+      "PANGEIA"        // Geologia
     ];
 
     const grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(''));
@@ -142,7 +150,7 @@
     let foundWordsCount = 0;
     let timeLeft = 180; // 3 minutos
 
-    // Direções: [dx, dy] (Horizontal, Vertical, Diagonais, Invertidos)
+    // Direções: [dx, dy]
     const DIRECTIONS = [
       [0, 1],   // Direita
       [1, 0],   // Baixo
@@ -282,7 +290,7 @@
           foundWordsCount++;
 
           if (foundWordsCount === WORDS.length) {
-            setTimeout(() => alert("Parabéns! Você encontrou todas as palavras no modo extremo!"), 200);
+            setTimeout(() => alert("Excelente! Você provou ter ótimos conhecimentos gerais e venceu o jogo!"), 200);
           }
         }
       }
@@ -300,7 +308,7 @@
 
         if (timeLeft <= 0) {
           clearInterval(interval);
-          alert("O tempo acabou! Tente novamente.");
+          alert("O tempo acabou! Recarregue a página para tentar novamente.");
           location.reload();
         }
       }, 1000);
@@ -309,4 +317,4 @@
     initBoard();
   </script>
 </body>
-</html>
+</html>.
