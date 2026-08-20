@@ -1,159 +1,213 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+// Configuração Básica da Cena 3D
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb); // Céu azul
+scene.fog = new THREE.Fog(0x87ceeb, 20, 80);
 
-// Configurações do Jogador
-const player = {
-  x: 400,
-  y: 300,
-  size: 16,
-  speed: 3,
-  health: 100,
-  hunger: 100,
-  stamina: 100,
-  wood: 0,
-  stone: 0,
-  food: 0,
-  hasAxe: false
-};
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
 
-// Teclas pressionadas
+// Iluminação
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(20, 40, 20);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+scene.add(dirLight);
+
+// Terreno
+const groundGeo = new THREE.PlaneGeometry(100, 100);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x557a2b });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Criando o Personagem (Malha 3D de Robô/Humanoide Básico)
+const playerGroup = new THREE.Group();
+
+// Corpo
+const bodyGeo = new THREE.CylinderGeometry(0.5, 0.3, 1.2, 8);
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2196f3 });
+const body = new THREE.Mesh(bodyGeo, bodyMat);
+body.position.y = 1;
+body.castShadow = true;
+playerGroup.add(body);
+
+// Cabeça
+const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
+const headMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+const head = new THREE.Mesh(headGeo, headMat);
+head.position.y = 1.8;
+head.castShadow = true;
+playerGroup.add(head);
+
+scene.add(playerGroup);
+
+// Estado do Jogador
+const stats = { health: 100, hunger: 100, wood: 0, stone: 0, food: 0 };
 const keys = {};
 
-// Recursos espalhados pelo mapa
-let resources = [];
-const RESOURCE_TYPES = {
-  WOOD: { color: '#8B4513', name: 'Madeira', size: 12 },
-  STONE: { color: '#808080', name: 'Pedra', size: 10 },
-  FOOD: { color: '#FF4500', name: 'Comida', size: 8 }
-};
+// Gerador de Recursos no Mundo (Árvores, Pedras e Comida)
+const resources = [];
 
-// Gerar recursos aleatórios no mapa
-function spawnResources(count) {
-  for (let i = 0; i < count; i++) {
-    const types = [RESOURCE_TYPES.WOOD, RESOURCE_TYPES.STONE, RESOURCE_TYPES.FOOD];
-    const type = types[Math.floor(Math.random() * types.length)];
-    resources.push({
-      x: Math.random() * (canvas.width - 40) + 20,
-      y: Math.random() * (canvas.height - 40) + 20,
-      type: type
-    });
-  }
+function createTree(x, z) {
+  const group = new THREE.Group();
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.3, 2),
+    new THREE.MeshStandardMaterial({ color: 0x5c4033 })
+  );
+  trunk.position.y = 1;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  const leaves = new THREE.Mesh(
+    new THREE.ConeGeometry(1.2, 3, 8),
+    new THREE.MeshStandardMaterial({ color: 0x2e8b57 })
+  );
+  leaves.position.y = 2.8;
+  leaves.castShadow = true;
+  group.add(leaves);
+
+  group.position.set(x, 0, z);
+  group.userData = { type: 'wood' };
+  scene.add(group);
+  resources.push(group);
 }
 
-// Inicialização de controles
+function createRock(x, z) {
+  const rock = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.6),
+    new THREE.MeshStandardMaterial({ color: 0x808080 })
+  );
+  rock.position.set(x, 0.4, z);
+  rock.castShadow = true;
+  rock.userData = { type: 'stone' };
+  scene.add(rock);
+  resources.push(rock);
+}
+
+function createFoodNode(x, z) {
+  const food = new THREE.Mesh(
+    new THREE.SphereGeometry(0.4, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xff4500 })
+  );
+  food.position.set(x, 0.4, z);
+  food.castShadow = true;
+  food.userData = { type: 'food' };
+  scene.add(food);
+  resources.push(food);
+}
+
+// Espalhar itens pelo terreno
+for (let i = 0; i < 20; i++) {
+  createTree((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+  createRock((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+  createFoodNode((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+}
+
+// Controles
 window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+window.addEventListener('resize', onWindowResize);
 
-// Atualização de movimento e mecânicas
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Loop de Atualização
+const speed = 0.15;
+let walkCycle = 0;
+
 function update() {
-  if (player.health <= 0) return;
+  if (stats.health <= 0) return;
 
-  // Movimento
-  let isMoving = false;
-  if ((keys['w'] || keys['arrowup']) && player.y > player.size) { player.y -= player.speed; isMoving = true; }
-  if ((keys['s'] || keys['arrowdown']) && player.y < canvas.height - player.size) { player.y += player.speed; isMoving = true; }
-  if ((keys['a'] || keys['arrowleft']) && player.x > player.size) { player.x -= player.speed; isMoving = true; }
-  if ((keys['d'] || keys['arrowright']) && player.x < canvas.width - player.size) { player.x += player.speed; isMoving = true; }
+  let moveX = 0;
+  let moveZ = 0;
+
+  if (keys['w'] || keys['arrowup']) moveZ -= 1;
+  if (keys['s'] || keys['arrowdown']) moveZ += 1;
+  if (keys['a'] || keys['arrowleft']) moveX -= 1;
+  if (keys['d'] || keys['arrowright']) moveX += 1;
+
+  if (moveX !== 0 || moveZ !== 0) {
+    // Normalizar movimento diagonal
+    const length = Math.hypot(moveX, moveZ);
+    moveX /= length;
+    moveZ /= length;
+
+    playerGroup.position.x += moveX * speed;
+    playerGroup.position.z += moveZ * speed;
+
+    // Girar o personagem na direção do movimento
+    const targetAngle = Math.atan2(moveX, moveZ);
+    playerGroup.rotation.y = targetAngle;
+
+    // Animação simples de caminhada (oscilação da cabeça/corpo)
+    walkCycle += 0.2;
+    body.position.y = 1 + Math.sin(walkCycle) * 0.05;
+
+    // Gastar fome ao andar
+    stats.hunger -= 0.03;
+  } else {
+    stats.hunger -= 0.01;
+  }
+
+  // Limite das bordas do mapa
+  playerGroup.position.x = Math.max(-48, Math.min(48, playerGroup.position.x));
+  playerGroup.position.z = Math.max(-48, Math.min(48, playerGroup.position.z));
 
   // Sistema de Fome e Vida
-  if (isMoving) {
-    player.hunger -= 0.02;
-  } else {
-    player.hunger -= 0.005;
+  if (stats.hunger <= 0) {
+    stats.hunger = 0;
+    stats.health -= 0.08;
   }
 
-  if (player.hunger <= 0) {
-    player.hunger = 0;
-    player.health -= 0.05; // Perde vida se estiver com fome
-  }
+  // Coleta de Recursos por Aproximação
+  for (let i = resources.length - 1; i >= 0; i--) {
+    const res = resources[i];
+    const dist = playerGroup.position.distanceTo(res.position);
 
-  // Coleta de Recursos por sobreposição
-  resources.forEach((res, index) => {
-    const dist = Math.hypot(player.x - res.x, player.y - res.y);
-    if (dist < player.size + res.type.size) {
-      const yieldAmount = player.hasAxe && res.type === RESOURCE_TYPES.WOOD ? 2 : 1;
-      
-      if (res.type === RESOURCE_TYPES.WOOD) player.wood += yieldAmount;
-      if (res.type === RESOURCE_TYPES.STONE) player.stone += yieldAmount;
-      if (res.type === RESOURCE_TYPES.FOOD) player.food += yieldAmount;
+    if (dist < 1.5) {
+      const type = res.userData.type;
+      if (type === 'wood') stats.wood++;
+      if (type === 'stone') stats.stone++;
+      if (type === 'food') {
+        stats.food++;
+        stats.hunger = Math.min(100, stats.hunger + 15); // Come automaticamente ao coletar comida
+      }
 
-      resources.splice(index, 1);
-      setTimeout(() => spawnResources(1), 3000); // Repõe recurso após 3s
+      scene.remove(res);
+      resources.splice(i, 1);
     }
-  });
-
-  updateUI();
-}
-
-// Atualizar a Interface do Usuário (UI)
-function updateUI() {
-  document.getElementById('health-val').textContent = Math.max(0, Math.floor(player.health));
-  document.getElementById('hunger-val').textContent = Math.max(0, Math.floor(player.hunger));
-  document.getElementById('stamina-val').textContent = Math.floor(player.stamina);
-  document.getElementById('wood-val').textContent = player.wood;
-  document.getElementById('stone-val').textContent = player.stone;
-  document.getElementById('food-val').textContent = player.food;
-}
-
-// Ações do painel de construção/consumo
-function craftItem(item) {
-  if (item === 'food' && player.food > 0) {
-    player.food--;
-    player.hunger = Math.min(100, player.hunger + 20);
-  } else if (item === 'camp' && player.wood >= 10) {
-    player.wood -= 10;
-    player.health = Math.min(100, player.health + 40);
-    alert("Você descansou no acampamento e recuperou vida!");
-  } else if (item === 'axe' && player.wood >= 5 && player.stone >= 5 && !player.hasAxe) {
-    player.wood -= 5;
-    player.stone -= 5;
-    player.hasAxe = true;
-    alert("Machado criado! Agora você coleta o dobro de madeira.");
   }
+
+  // Atualização da Câmera em Terceira Pessoa (Segue o Personagem)
+  camera.position.x = playerGroup.position.x;
+  camera.position.y = playerGroup.position.y + 6;
+  camera.position.z = playerGroup.position.z + 10;
+  camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1, playerGroup.position.z);
+
+  // Atualizar HUD
+  document.getElementById('health-val').textContent = Math.max(0, Math.floor(stats.health));
+  document.getElementById('hunger-val').textContent = Math.max(0, Math.floor(stats.hunger));
+  document.getElementById('wood-val').textContent = stats.wood;
+  document.getElementById('stone-val').textContent = stats.stone;
+  document.getElementById('food-val').textContent = stats.food;
 }
 
-// Renderização gráfica no Canvas
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Desenhar Recursos
-  resources.forEach(res => {
-    ctx.beginPath();
-    ctx.arc(res.x, res.y, res.type.size, 0, Math.PI * 2);
-    ctx.fillStyle = res.type.color;
-    ctx.fill();
-    ctx.closePath();
-  });
-
-  // Desenhar Jogador
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
-  ctx.fillStyle = player.health > 0 ? '#3b82f6' : '#888';
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = '#fff';
-  ctx.stroke();
-  ctx.closePath();
-
-  // Tela de Game Over
-  if (player.health <= 0) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = '#ff4d4d';
-    ctx.font = '30px Segoe UI';
-    ctx.textAlign = 'center';
-    ctx.fillText('GAME OVER - Você Morreu', canvas.width / 2, canvas.height / 2);
-  }
-}
-
-// Loop Principal do Jogo
-function gameLoop() {
+// Loop Principal
+function animate() {
+  requestAnimationFrame(animate);
   update();
-  draw();
-  requestAnimationFrame(gameLoop);
+  renderer.render(scene, camera);
 }
 
-// Iniciar o jogo
-spawnResources(15);
-gameLoop();
+animate();
