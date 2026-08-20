@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Defensores do Espaço - Fases</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #050515;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      box-shadow: 0 0 30px rgba(0, 229, 255, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      background: #02020a;
+      cursor: none;
+    }
+    .hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.1rem;
+      font-weight: bold;
+      pointer-events: none;
+      text-shadow: 0 0 8px rgba(0,0,0,0.8);
+    }
+    .score { color: #00e5ff; }
+    .level { color: #ffcc00; }
+    .health { color: #ff0055; }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <div class="hud">
+      <div class="score">Pontos: <span id="score-val">0</span></div>
+      <div class="level">Fase: <span id="level-val">1</span></div>
+      <div class="health">Escudo: <span id="health-val">100</span>%</div>
+    </div>
+    <canvas id="canvas" width="480" height="640"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Estado Geral do Jogo
+    let score = 0;
+    let health = 100;
+    let level = 1;
+    let killsInLevel = 0;
+    const KILLS_PER_LEVEL = 15; // Inimigos necessários para o Chefe
+    let gameOver = false;
+    let frame = 0;
+    let phaseMessage = "FASE 1";
+    let messageTimer = 120; // Duração do aviso de fase em frames
+
+    // Jogador
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height - 80,
+      width: 32,
+      height: 32,
+      speed: 0.15
+    };
+
+    let targetX = player.x;
+    let targetY = player.y;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      targetX = e.clientX - rect.left;
+      targetY = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      targetX = e.touches[0].clientX - rect.left;
+      targetY = e.touches[0].clientY - rect.top;
+      e.preventDefault();
+    });
+
+    // Entidades
+    const bullets = [];
+    const meteors = [];
+    const crystals = [];
+    const stars = [];
+    let boss = null;
+
+    // Fundo Estrelado
+    for (let i = 0; i < 60; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2,
+        speed: 0.5 + Math.random() * 1.5
+      });
+    }
+
+    // Criar o Chefão da Fase
+    function spawnBoss() {
+      boss = {
+        x: canvas.width / 2,
+        y: -80,
+        targetY: 100,
+        width: 80,
+        height: 60,
+        hp: 30 + level * 20,
+        maxHp: 30 + level * 20,
+        dx: 2 + level * 0.5
+      };
+      phaseMessage = `ALERTA: CHEFÃO DA FASE ${level}!`;
+      messageTimer = 120;
+    }
+
+    // Avançar de Fase
+    function nextLevel() {
+      level++;
+      killsInLevel = 0;
+      boss = null;
+      phaseMessage = `FASE ${level}`;
+      messageTimer = 120;
+      health = Math.min(100, health + 30); // Bônus de vida ao passar de fase
+    }
+
+    // Loop de Atualização de Lógica
+    function update() {
+      if (gameOver) return;
+      frame++;
+
+      if (messageTimer > 0) messageTimer--;
+
+      // Movimentação da Nave
+      player.x += (targetX - player.x) * player.speed;
+      player.y += (targetY - player.y) * player.speed;
+
+      player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+      player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+
+      // Atirar (Tiro rápido automático)
+      if (frame % 8 === 0) {
+        bullets.push({ x: player.x, y: player.y - 15, speed: 10 });
+      }
+
+      // Atualizar Tiros
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        bullets[i].y -= bullets[i].speed;
+        if (bullets[i].y < -10) bullets.splice(i, 1);
+      }
+
+      // Spawn de Inimigos / Meteoros (Mais frequentes conforme o nível aumenta)
+      const spawnRate = Math.max(10, 35 - level * 3);
+      if (!boss && frame % spawnRate === 0) {
+        meteors.push({
+          x: Math.random() * (canvas.width - 40) + 20,
+          y: -30,
+          radius: 12 + Math.random() * 16,
+          speed: (2 + level * 0.5) + Math.random() * 2, // Fica mais rápido a cada fase
+          hp: 1 + Math.floor(level / 2) // Inimigos ficam mais resistentes
+        });
+      }
+
+      // Atualizar Meteoros
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.y += m.speed;
+
+        // Colisão Meteoro x Tiro
+        for (let j = bullets.length - 1; j >= 0; j--) {
+          const b = bullets[j];
+          if (Math.hypot(m.x - b.x, m.y - b.y) < m.radius + 4) {
+            bullets.splice(j, 1);
+            m.hp--;
+
+            if (m.hp <= 0) {
+              if (Math.random() > 0.4) crystals.push({ x: m.x, y: m.y, speed: 2 });
+              score += 10 * level;
+              killsInLevel++;
+              meteors.splice(i, 1);
+
+              // Invocar o Chefe se bater a cota de destruição
+              if (killsInLevel >= KILLS_PER_LEVEL && !boss) {
+                spawnBoss();
+              }
+              break;
+            }
+          }
+        }
+
+        // Colisão Meteoro x Jogador
+        if (m && Math.hypot(m.x - player.x, m.y - player.y) < m.radius + 15) {
+          health -= 15 + level * 2;
+          meteors.splice(i, 1);
+          if (health <= 0) gameOver = true;
+        } else if (m && m.y > canvas.height + 40) {
+          meteors.splice(i, 1);
+        }
+      }
+
+      // Atualizar Lógica do Chefão (Se presente)
+      if (boss) {
+        if (boss.y < boss.targetY) boss.y += 2; // Entrada do chefe
+
+        boss.x += boss.dx;
+        if (boss.x > canvas.width - 50 || boss.x < 50) boss.dx *= -1; // Movimento lateral
+
+        // Colisão Tiro x Chefão
+        for (let j = bullets.length - 1; j >= 0; j--) {
+          const b = bullets[j];
+          if (Math.abs(b.x - boss.x) < boss.width / 2 && Math.abs(b.y - boss.y) < boss.height / 2) {
+            bullets.splice(j, 1);
+            boss.hp--;
+
+            if (boss.hp <= 0) {
+              score += 500 * level;
+              nextLevel();
+              break;
+            }
+          }
+        }
+
+        // Colisão Chefão x Jogador
+        if (Math.hypot(boss.x - player.x, boss.y - player.y) < 50) {
+          health -= 1;
+          if (health <= 0) gameOver = true;
+        }
+      }
+
+      // Atualizar Cristais
+      for (let i = crystals.length - 1; i >= 0; i--) {
+        const c = crystals[i];
+        c.y += c.speed;
+
+        if (Math.hypot(c.x - player.x, c.y - player.y) < 25) {
+          score += 25;
+          health = Math.min(100, health + 6);
+          crystals.splice(i, 1);
+        } else if (c.y > canvas.height + 20) {
+          crystals.splice(i, 1);
+        }
+      }
+
+      // Estrelas
+      stars.forEach(s => {
+        s.y += s.speed + (level * 0.2); // Fundo acelera conforme o nível
+        if (s.y > canvas.height) s.y = 0;
+      });
+
+      // Atualizar HUD
+      document.getElementById('score-val').textContent = score;
+      document.getElementById('level-val').textContent = level;
+      document.getElementById('health-val').textContent = Math.max(0, Math.floor(health));
+    }
+
+    // Renderização
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Estrelas
+      ctx.fillStyle = '#ffffff';
+      stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+
+      // Cristais
+      ctx.fillStyle = '#00ff88';
+      crystals.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Tiros
+      ctx.fillStyle = '#00e5ff';
+      bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 12));
+
+      // Meteoros
+      meteors.forEach(m => {
+        ctx.fillStyle = '#ff5533';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Chefão
+      if (boss) {
+        ctx.fillStyle = '#aa00ff';
+        ctx.fillRect(boss.x - boss.width / 2, boss.y - boss.height / 2, boss.width, boss.height);
+
+        // Barra de vida do Chefão
+        ctx.fillStyle = '#ff0055';
+        ctx.fillRect(boss.x - 40, boss.y - 45, 80, 6);
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(boss.x - 40, boss.y - 45, 80 * (boss.hp / boss.maxHp), 6);
+      }
+
+      // Jogador
+      if (!gameOver) {
+        ctx.fillStyle = '#00e5ff';
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y - 18);
+        ctx.lineTo(player.x - 16, player.y + 12);
+        ctx.lineTo(player.x + 16, player.y + 12);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ff0055';
+        ctx.fillRect(player.x - 4, player.y + 12, 8, 8 + Math.sin(frame) * 4);
+      }
+
+      // Mensagem de Transição de Fase
+      if (messageTimer > 0) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, canvas.height / 2 - 40, canvas.width, 80);
+
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 24px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText(phaseMessage, canvas.width / 2, canvas.height / 2 + 8);
+      }
+
+      // Game Over
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(2, 2, 10, 0.85)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#ff0055';
+        ctx.font = 'bold 28px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('FIM DE JOGO', canvas.width / 2, canvas.height / 2 - 20);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px Segoe UI';
+        ctx.fillText(`Fase Alcançada: ${level}`, canvas.width / 2, canvas.height / 2 + 15);
+        ctx.fillText(`Pontuação Final: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
+        ctx.fillText('Recarregue a página para jogar novamente', canvas.width / 2, canvas.height / 2 + 75);
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+</html>
